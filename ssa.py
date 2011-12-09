@@ -105,7 +105,6 @@ def countVars(IfNode,testVars={},elseVars={}):
 
 
 def makeSSA(funs):
-	print '!!!'
 	#'vars' is a keyword in python so i spellled with a z
 	varz = {}
 	for fun in funs:
@@ -113,11 +112,9 @@ def makeSSA(funs):
 			print PrintVisitor3().preorder(fun)
 		else:
 			for node in fun.code.nodes:
-				print '!!!'
 				if isinstance(node,If):
 					pass
 				if isinstance(node,IntMoveInstr):
-					print '!!!'
 					if 'tmp' not in node.lhs.name:
 						if node.lhs.name not in varz:
 							varz[node.lhs.name] = 1
@@ -137,6 +134,6 @@ def makeSSA(funs):
 						if name in varz:
 							node.arg.name = name+'_'+str(varz[name])
 					
-		for node in fun.code.nodes:
-			print node
+		#for node in fun.code.nodes:
+		#	print node
 	return funs
