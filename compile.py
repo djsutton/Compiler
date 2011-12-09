@@ -1,5 +1,5 @@
-#! /usr/bin/env python
-
+#! /usr/local/bin/python
+from ssa import *
 import pdb
 import sys
 import compiler
@@ -20,10 +20,46 @@ from remove_structured_control import RemoveStructuredControl
 from declassify import DeclassifyVisitor
 from os.path import splitext
 #from parse_p3 import P3Parser
-
 debug = False
 
-try:
+ifDepth = 0
+def printIf(IfNode):
+    global ifDepth
+    ifDepth += 1
+    print '  '*(ifDepth-1)+'If{'
+    for stmt in IfNode.tests[0]:
+        if isinstance(stmt,If):
+            printIf(stmt)
+        elif isinstance(stmt,Stmt):
+            printStmt(stmt)
+        else:
+            print '  '*ifDepth+str(stmt)
+    print '\n'
+    for stmt in IfNode.else_:
+        if isinstance(stmt,If):
+            printIf(stmt)
+        elif isinstance(stmt,Stmt):
+            printStmt(stmt)
+        else:
+            print '  '*ifDepth+str(stmt)
+    print '  '*(ifDepth-1)+'}',ssa.countVars(IfNode)
+    ifDepth-=1
+    return
+
+def printStmt(stmt):
+    global ifDepth
+    ifDepth+=1
+    print '  '*(ifDepth-1)+'Stmt{'
+    for node in stmt:
+        if isinstance(node,If):
+            printIf(node)
+        else:
+            print '  '*ifDepth+str(node)
+    ifDepth-=1
+    print '  '*(ifDepth)+'}'
+    return
+
+if True:
     #pdb.set_trace()
     if debug:
         print 'starting'
@@ -75,15 +111,36 @@ try:
         print 'finished instruction selection'
         for fun in funs:
             print PrintVisitor3().preorder(fun)
+        print 'starting SSA generation'
+   
+    funs = makeSSA(funs)
+    if True:
+        for fun in funs:
+            #fun.code.nodes.reverse()
+            for node in fun.code.nodes:
+                if isinstance(node,If):
+                    printIf(node)
+                else:
+                    print node
+
+    #funs = ssa6.makeSSA(funs)
+    if debug:
+        print 'finished making SSA'
+        for fun in funs:
+            print PrintVisitor3().preorder(fun)
         print 'starting register allocation'
 
     new_funs = []
     for fun in funs:
         new_funs += [RegisterAlloc3().allocate_registers(fun,
-                                                         input_file_name + '_' + fun.name)]
+                                           input_file_name + '_' + fun.name)]
     funs = new_funs
     if debug:
         print 'finished register allocation'
+
+    if False:
+        for fun in funs:
+            print PrintVisitor3().preorder(fun)
 
     for fun in funs:
         fun.code = RemoveStructuredControl().preorder(fun.code)
@@ -114,9 +171,8 @@ try:
     asm_file = open(splitext(input_file_name)[0] + '.s', 'w')
     print >>asm_file, x86
 
-except EOFError:
+'''except EOFError:
     print "Could not open file %s." % sys.argv[1]
 except Exception, e:
     print e.args[0]
-    exit(-1)
-
+    exit(-1)'''
