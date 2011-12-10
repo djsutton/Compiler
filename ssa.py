@@ -86,7 +86,7 @@ def countVars(IfNode,testVars={},elseVars={}):
     
     return testVars,elseVars
 
-def rename(nameNode, varz, ptrs={}):
+def rename(nameNode, varz, ptrs):
     name = nameNode.name
     if name in varz:
         if '_' not in nameNode.name:
@@ -97,7 +97,7 @@ def rename(nameNode, varz, ptrs={}):
     
     return nameNode
 
-def update(nameNode, varz, ptrs={}):
+def update(nameNode, varz, ptrs):
     name = nameNode.name
     if '_' not in name:
         if name not in varz:
@@ -108,21 +108,18 @@ def update(nameNode, varz, ptrs={}):
 
 def merge(tPtrs,ePtrs,varz):
     
-    print 'tPtrs:',tPtrs
-    print 'ePtrs:',ePtrs
     ptrs = tPtrs.copy()
     
     for var,refs in ePtrs.items():
         if var in ptrs:
-            refs = ptrs[var] + refs
+            ptrs[var] = ptrs[var] + refs
             
             varz[var] += 1
-            for nameNode in refs:
+            for nameNode in ptrs[var]:
                 nameNode.name = '%s@%d'%(var,varz[var])
+            
         else:
             ptrs[var] = refs
-    print ' ptrs:', ptrs
-    print
     return ptrs
 
 def makeSSA(funs):
@@ -145,9 +142,10 @@ def ssaStmt(stmt, varz,ptrs={}):
 
 def ssaNode(node, varz, ptrs={}):
     if isinstance(node,If):
+        ePtrs = ssaStmt(node.else_, varz, ptrs.copy())
         tPtrs = ssaStmt(node.tests[0][1], varz, ptrs.copy())
-        ePtrs = ssaStmt(node.else_, varz, ptrs)
-        ptrs = merge(tPtrs, ePtrs, varz)
+        if tPtrs != ePtrs:
+            ptrs = merge(tPtrs, ePtrs, varz)
     if isinstance(node,IntMoveInstr):
         update(node.lhs,varz,ptrs)
         rename(node.lhs,varz,ptrs)
