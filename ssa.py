@@ -142,10 +142,18 @@ def ssaStmt(stmt, varz,ptrs={}):
 
 def ssaNode(node, varz, ptrs={}):
     if isinstance(node,If):
+        ptrs=ssaNode(node.tests[0][0],varz,ptrs)
         ePtrs = ssaStmt(node.else_, varz, ptrs.copy())
         tPtrs = ssaStmt(node.tests[0][1], varz, ptrs.copy())
         if tPtrs != ePtrs:
             ptrs = merge(tPtrs, ePtrs, varz)
+    
+    if isinstance(node,While):
+        ptrs=ssaNode(node.test,varz,ptrs)
+        bPtrs = ssaStmt(node.body, varz, ptrs.copy())
+        if ptrs != bPtrs:
+            ptrs = merge(ptrs, bPtrs, varz)
+    
     if isinstance(node,IntMoveInstr):
         update(node.lhs,varz,ptrs)
         rename(node.lhs,varz,ptrs)

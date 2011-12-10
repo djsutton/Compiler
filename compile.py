@@ -122,7 +122,7 @@ if True:
                 else:
                     print node
     funs = ssa.makeSSA(funs)
-    if True:
+    if False:
         for fun in funs:
             #fun.code.nodes.reverse()
             for node in fun.code.nodes:
