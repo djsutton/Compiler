@@ -1,5 +1,5 @@
 #! /usr/local/bin/python
-from ssa import *
+import ssa2 as ssa
 import pdb
 import sys
 import compiler
@@ -112,8 +112,16 @@ if True:
         for fun in funs:
             print PrintVisitor3().preorder(fun)
         print 'starting SSA generation'
-   
-    funs = makeSSA(funs)
+  
+    if False:
+        for fun in funs:
+            #fun.code.nodes.reverse()
+            for node in fun.code.nodes:
+                if isinstance(node,If):
+                    printIf(node)
+                else:
+                    print node
+    funs = ssa.makeSSA(funs)
     if True:
         for fun in funs:
             #fun.code.nodes.reverse()
@@ -123,7 +131,6 @@ if True:
                 else:
                     print node
 
-    #funs = ssa6.makeSSA(funs)
     if debug:
         print 'finished making SSA'
         for fun in funs:
