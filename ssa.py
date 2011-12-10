@@ -89,23 +89,41 @@ def countVars(IfNode,testVars={},elseVars={}):
 def rename(nameNode, varz, ptrs={}):
     name = nameNode.name
     if name in varz:
-        if '_' not in node.rhs[0].name:
+        if '_' not in nameNode.name:
             
             newName = name+'@'+str(varz[name])
-            newNode = Name(newName)
-            ptrs[name].append(newNode)
-            return newNode
+            nameNode.name = newName
+            ptrs[name].append(nameNode)
     
     return nameNode
 
 def update(nameNode, varz, ptrs={}):
     name = nameNode.name
     if '_' not in name:
-        if node.lhs.name not in varz:
+        if name not in varz:
             varz[name] = 1
         else:
             varz[name] += 1
         ptrs[name] = []
+
+def merge(tPtrs,ePtrs,varz):
+    
+    print 'tPtrs:',tPtrs
+    print 'ePtrs:',ePtrs
+    ptrs = tPtrs.copy()
+    
+    for var,refs in ePtrs.items():
+        if var in ptrs:
+            refs = ptrs[var] + refs
+            
+            varz[var] += 1
+            for nameNode in refs:
+                nameNode.name = '%s@%d'%(var,varz[var])
+        else:
+            ptrs[var] = refs
+    print ' ptrs:', ptrs
+    print
+    return ptrs
 
 def makeSSA(funs):
     #'vars' is a keyword in python so i spellled with a z
@@ -122,16 +140,20 @@ def makeSSA(funs):
 
 def ssaStmt(stmt, varz,ptrs={}):
     for node in stmt.nodes:
-        ssaNode(node,varz,ptrs)
+        ptrs = ssaNode(node,varz,ptrs)
+    return ptrs
 
-def ssaNode(node, varz, ptrs={})
+def ssaNode(node, varz, ptrs={}):
     if isinstance(node,If):
-        pass
+        tPtrs = ssaStmt(node.tests[0][1], varz, ptrs.copy())
+        ePtrs = ssaStmt(node.else_, varz, ptrs)
+        ptrs = merge(tPtrs, ePtrs, varz)
     if isinstance(node,IntMoveInstr):
-        update(node.lhs,varz)
-        rename(node.lhs,varz)
+        update(node.lhs,varz,ptrs)
+        rename(node.lhs,varz,ptrs)
         if isinstance(node.rhs[0],Name):
-            rename(node.rhs[0], varz)
+            rename(node.rhs[0], varz,ptrs)
     if isinstance(node,Push):
         if isinstance(node.arg,Name):
-            rename(node.arg)
+            rename(node.arg,varz,ptrs)
+    return ptrs

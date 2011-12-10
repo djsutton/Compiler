@@ -1,5 +1,5 @@
-#! /usr/local/bin/python
-import ssa2 as ssa
+#! /usr/bin/env python
+import ssa
 import pdb
 import sys
 import compiler
