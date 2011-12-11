@@ -15,16 +15,18 @@ from print_visitor import PrintVisitor
 from os.path import splitext
 from priority_queue import PriorityQueue
 import random
+import copy
+
 
 debug = False
 
 unspillable = [[]]
-
+num_colors = 6
 reserved_registers = ['esp']
 registers = ['eax', 'ebx', 'ecx', 'esi', 'edi', 'edx']
 real_color = ['blue', 'green', 'cyan', 'orange', \
               'brown', 'forestgreen', 'yellow']
-
+vars_to_spill = set([])
 move_bias_reg = 0
 move_bias_stack = 0
 
@@ -34,16 +36,16 @@ def is_reg(c):
 # We represent colors with natural numbers. The first k
 # natural number represent the k registers available on the machine.
 
-def choose_color(v, color, graphs):
+def choose_color(v, color, graphs,spill_this_one):
     global move_bias_reg
     global move_bias_stack
-
+    
     if debug:
         print 'coloring ' + v
-    
     used_colors = set([color[u] for u in graphs.interferes_with(v) \
-                       if u in color])
-
+                       if u in color]) 
+    if spill_this_one:
+        used_colors |=  set([0,1,2,3,4,5,6])
     if debug:
         print 'trying to pick move-related color'
 
@@ -62,6 +64,9 @@ def choose_color(v, color, graphs):
     unused_registers = [c for c in range(len(reserved_registers), \
                                          len(registers)) \
                         if not (c in used_colors)]
+    if debug:
+        print "unused_registers = " + repr(unused_registers)
+    #this just gets a list of the unused registers as integers
     if 0 < len(unused_registers):
         return min(unused_registers)
 
@@ -85,10 +90,7 @@ def choose_color(v, color, graphs):
             break
         else:
             lowest += 1
-    if debug:
-        print 'finished coloring ' + v
     return lowest
-
 spills = 0
 
 
@@ -101,6 +103,7 @@ def avail_reg_then_unspill(u, v):
     return (num_unused[u] > num_unused[v]) \
            or (num_unused[u] == num_unused[v] \
                and (u not in unspillable[0] and v in unspillable[0]))
+
 
 
 def color_most_constrained_first(graphs, color):
@@ -121,24 +124,140 @@ def color_most_constrained_first(graphs, color):
         if debug:
             print 'next to color is ' + v
         if v not in color.keys():
-            c = choose_color(v, color, graphs)
+            c = choose_color(v, color, graphs,False)
             color[v] = c
             for u in graphs.interferes_with(v):
                 #if u in graphs.vertices():
                 queue.update(u)
                 used_registers[u] |= set([c])
                 num_unused[u] = len(registers) - len(used_registers[u])
+                
             if not is_reg(c):
                 spills += 1
 # spills happen to unspillable in hw6! -Jeremy
 # Also, register allocation takes too long on some programs.
 #                 if v in unspillable[0]:
 #                     raise Exception('spilled an unspillable! ' + v)
-    if debug:
-        print 'finished with color_most_constrained_first'
     return color
-
 spilled = [False]
+
+def pick_trivial_node(g,n):
+    #should return a list containing a trivial node if one exists
+    #otherwise it will return an empty list
+    for node in n:
+        if num_neighbors(node,g)<num_colors:
+            return [node]
+    return []
+def num_neighbors(node,g):
+    return len(g.interferes_with(node))
+
+def remove_graph_node(g,node):
+    #really there is only the interference_graph and move_graph the verticies are the keys of the int_graph
+    sub = copy.deepcopy(g)
+    other_nodes = sub.interferes_with(node[0])
+    move_nodes = sub.move_related(node[0])
+    del sub.interference_graph[node[0]]
+    del sub.move_graph[node[0]]
+    for var in other_nodes:
+        sub.interference_graph[var].discard(node[0])
+    for var in move_nodes:
+        sub.move_graph[var].discard(node[0])
+    return sub
+
+def decide_which_to_spill(g,n):
+    global unspillable
+    nodes_to_spill = n - set(unspillable[0])
+    if len(nodes_to_spill) == 0:
+        print "we can only spill an unspillable...."
+        exit(0)
+    for v in nodes_to_spill:
+        return [v]
+def color_graph2(g,n,coloring): #should take g (edges) and nodes n and coloring will be the final coloring
+    #Omega is just the something broke command
+    global spills, unspillable, num_unused, used_registers,vars_to_spill
+    #this does post facto spill analysis
+    #n should be the set of nodes that need coloring
+    # g for us just the inter graph
+    '''
+    if n = {} then return {}; end if;
+    if not (\exists node in n | num neighbors(node,g)< num colors
+            then return OMEGA; end if ;
+    coloring = color_graph({edige \in g | node \notin edge },n-{node})
+    if coloring = OMEGA then return OMEGA ; end if;
+    coloring(node) = arb(colors - {coloring(x): x \in neighbors(node,g)});
+    return coloring;
+    '''
+    if len(n) == 0:
+        return coloring
+    
+    node = pick_trivial_node(g,n)
+    #print n,node
+    if not(node):
+        #this is the case wehre there were no nodes with the correct degree
+        node_to_spill = decide_which_to_spill(g,n)
+        if debug:
+            print "spilling ..." , node_to_spill
+        vars_to_spill |= set(node_to_spill)
+        coloring = color_graph2(remove_graph_node(g,node_to_spill),n-set(node_to_spill),coloring)
+    else:
+        coloring  = color_graph2(remove_graph_node(g,node),n-set(node),coloring)
+        c = choose_color(node[0],coloring,g,False)
+        coloring[node[0]] = c
+        for u in g.interferes_with(node[0]):
+            used_registers[u] |= set([c])
+            num_unused[u] = len(registers) - len(used_registers[u])
+        if not is_reg(c):
+            spills += 1
+    return coloring
+def color_graph1(g,n,coloring):
+    #this is as close as we come to chaitins method
+    #should take g (edges) and nodes n and coloring will be the final coloring
+    #Omega is just the something broke command
+    global spills, unspillable, num_unused, used_registers
+
+    #n should be the set of nodes that need coloring
+    # g for us just the inter graph
+    '''
+    if n = {} then return {}; end if;
+    if not (\exists node in n | num neighbors(node,g)< num colors
+            then return OMEGA; end if ;
+    coloring = color_graph({edige \in g | node \notin edge },n-{node})
+    if coloring = OMEGA then return OMEGA ; end if;
+    coloring(node) = arb(colors - {coloring(x): x \in neighbors(node,g)});
+    return coloring;
+    '''
+    if len(n) == 0:
+        return coloring
+    
+    node = pick_trivial_node(g,n)
+    #print n,node
+    if not(node):
+               #this is the case wehre there were no nodes with the correct degree
+        node_to_spill = decide_which_to_spill(g,n)
+        if debug:
+            print "spilling ..." , node_to_spill
+        coloring = color_graph1(remove_graph_node(g,node_to_spill),n-set(node_to_spill),coloring)
+        c = choose_color(node_to_spill[0],coloring,g,True)
+        coloring[node_to_spill[0]] = c
+        for u in g.interferes_with(node_to_spill[0]):
+            used_registers[u] |= set([c])
+            num_unused[u] = len(registers) - len(used_registers[u])
+        if not is_reg(c):
+            spills += 1
+    else:
+        coloring  = color_graph1(remove_graph_node(g,node),n-set(node),coloring)
+        c = choose_color(node[0],coloring,g,False)
+        coloring[node[0]] = c
+        for u in g.interferes_with(node[0]):
+            used_registers[u] |= set([c])
+            num_unused[u] = len(registers) - len(used_registers[u])
+        if not is_reg(c):
+            spills += 1
+    return coloring
+
+
+
+
 
 def in_register(node, color):
     if isinstance(node, Register):
@@ -282,12 +401,55 @@ class AssignRegistersVisitor(Visitor):
         else:
             Visitor.default(self, n)
 
+def color_registers(color,graphs):
+    color['esp'] = 0
+    for u in graphs.interferes_with('esp'):
+        used_registers[u] |= set([0])
+        num_unused[u] = len(registers) - len(used_registers[u])
+    for v in registers:
+        c = registers.index(v)+1
+        color[v] = c
+        for u in graphs.interferes_with(v):
+            used_registers[u] |= set([c])
+            num_unused[u] = len(registers) - len(used_registers[u])
+            if not is_reg(c):
+                spills += 1
+    return color
+
+def chaitin(graphs,color):
+    global used_registers,num_unused,registers,vars_to_spill,reserved_registers,spills
+    x=1
+    #1 is close to chaitin
+    #2 is an optimization that spilling may not be needed
+    for v in graphs.vertices():
+        used_registers[v] = set([])
+        num_unused[v] = len(registers) - len(used_registers[v])
+    color = color_registers(color,graphs)
+    if x ==1:
+         color = color_graph1(graphs,set(graphs.vertices())-set(reserved_registers)-set(registers),color)
+         return color
+    if x==2:
+        vars_to_spill = set([])
+        color = color_graph2(graphs,set(graphs.vertices())-set(reserved_registers)-set(registers),color)
+        for var in vars_to_spill:
+            c = choose_color(var,color,graphs,False)
+            color[var] = c
+            for u in graphs.interferes_with(var):
+                used_registers[u] |= set([c])
+                num_unused[u] = len(registers) - len(used_registers[u])
+                if not is_reg(c):
+                    spills += 1
+        return color
+    
+
+
+
+
 def position(x, ls):
     for i in range(0, len(ls)):
         if x == ls[i]:
             return i
     raise Exception('%s not in list' % repr(x))
-
 class RegisterAlloc:
 
     def build_interference(self, all_registers):
@@ -295,7 +457,8 @@ class RegisterAlloc:
 
     def liveness(self):
         return ModifyLiveVisitor()
-
+    def coalesce(self):
+        return CoalesceVisitor()
     def intro_spill_code(self, color, instrs):
         return IntroSpillCode(color).preorder(instrs)
 
@@ -306,16 +469,20 @@ class RegisterAlloc:
         return PrintVisitor().preorder(instrs)
 
     def allocate_registers(self, instrs, filename):
-        global spilled, spills, reserved_registers, registers
+        global spilled, spills, reserved_registers, registers,vars_to_spill
         spilled[0] = True
         k = 0
         color = {}
         for r in reserved_registers:
             color[r] = position(r, reserved_registers)
+            
         n = len(reserved_registers)
         for r in registers:
             color[r] = position(r, registers) + n
-
+        if debug:
+            print "color was" + repr(color)
+        #here color is a map that takes a register to an int so eax: 1 for example
+            
         while spilled[0]:
             if debug:
                 print 'register allocation loop ' + repr(k)
@@ -328,11 +495,15 @@ class RegisterAlloc:
                 print 'building interference'
             graphs = self.build_interference(registers + reserved_registers)
             graphs.preorder(instrs)
-            if debug:
-                print 'finished building interference'
             spills = 0
+            #This is the only actual part that uses the coloring portion
+            #I think all coloring can happen here by saying color2 = new_method(graphs,color)
+            #color = color_most_constrained_first(graphs, color)
+            #print 'starting coloring'
+            color = chaitin(graphs,color)
+            #print color
+            #print 'finished coloring'
 
-            color = color_most_constrained_first(graphs, color)
             if debug:
                 print 'finished coloring'
             if debug:
@@ -349,8 +520,11 @@ class RegisterAlloc:
                 for v in graphs.vertices():
                     if v not in reserved_registers and v not in registers and is_reg(color[v]):
                         del color[v]
-                
             k += 1
-                       
+        total_spilled = 0    
+        for v in color.keys():
+            if not is_reg(color[v]):
+                total_spilled +=1
+        print "total_spilled=", total_spilled , "k=" ,k
         instrs =  self.assign_registers(color, instrs)
         return instrs
