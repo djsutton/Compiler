@@ -1,0 +1,16 @@
+graph {
+"1_tmp"[color=green,label="1_tmp.0"]
+"0_tmp"[color=green,label="0_tmp.1"]
+"edi"[color=forestgreen,label="edi.2"]
+"esp"[color=blue,label="esp.3"]
+"eax"[color=green,label="eax.4"]
+"y"[color=green,label="y.5"]
+"x"[color=green,label="x.6"]
+"edx"[color=yellow,label="edx.7"]
+"ebx"[color=cyan,label="ebx.8"]
+"esi"[color=brown,label="esi.9"]
+"ecx"[color=orange,label="ecx.10"]
+
+
+}
+

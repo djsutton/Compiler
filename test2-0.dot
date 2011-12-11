@@ -1,0 +1,46 @@
+graph {
+"1_tmp"[color=green,label="1_tmp.0"]
+"4_tmp"[color=cyan,label="4_tmp.1"]
+"11_tmp"[color=cyan,label="11_tmp.2"]
+"5_tmp"[color=green,label="5_tmp.3"]
+"esp"[color=blue,label="esp.4"]
+"3_tmp"[color=cyan,label="3_tmp.5"]
+"ebx"[color=cyan,label="ebx.6"]
+"9_tmp"[color=cyan,label="9_tmp.7"]
+"edi"[color=forestgreen,label="edi.8"]
+"8_tmp"[color=cyan,label="8_tmp.9"]
+"12_tmp"[color=green,label="12_tmp.10"]
+"eax"[color=green,label="eax.11"]
+"13_tmp"[color=green,label="13_tmp.12"]
+"2_tmp"[color=orange,label="2_tmp.13"]
+"6_tmp"[color=orange,label="6_tmp.14"]
+"edx"[color=yellow,label="edx.15"]
+"10_tmp"[color=cyan,label="10_tmp.16"]
+"7_tmp"[color=cyan,label="7_tmp.17"]
+"0_letify"[color=cyan,label="0_letify.18"]
+"esi"[color=brown,label="esi.19"]
+"ecx"[color=orange,label="ecx.20"]
+
+"eax" -- "4_tmp"
+"0_letify" -- "6_tmp"
+"ecx" -- "esp"
+"6_tmp" -- "eax"
+"eax" -- "esp"
+"eax" -- "9_tmp"
+"0_letify" -- "1_tmp"
+"esp" -- "5_tmp"
+"ecx" -- "eax"
+"6_tmp" -- "esp"
+"0_letify" -- "2_tmp"
+"0_letify" -- "esp"
+"0_letify" -- "5_tmp"
+"edx" -- "eax"
+"edx" -- "esp"
+"2_tmp" -- "eax"
+"2_tmp" -- "esp"
+"0_letify" -- "eax"
+"eax" -- "eax"
+"esp" -- "1_tmp"
+"eax" -- "8_tmp"
+}
+
