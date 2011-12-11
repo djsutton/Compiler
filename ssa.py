@@ -108,8 +108,8 @@ def update(nameNode, varz, ptrs={}):
 
 def merge(tPtrs,ePtrs,varz):
     
-    print 'tPtrs:',tPtrs
-    print 'ePtrs:',ePtrs
+    print 'tPtrs:',tPtrs['x']
+    print 'ePtrs:',ePtrs['x']
     ptrs = tPtrs.copy()
     
     for var,refs in ePtrs.items():
@@ -121,7 +121,7 @@ def merge(tPtrs,ePtrs,varz):
                 nameNode.name = '%s@%d'%(var,varz[var])
         else:
             ptrs[var] = refs
-    print ' ptrs:', ptrs
+    print ' ptrs:', ptrs['x']
     print
     return ptrs
 
@@ -147,7 +147,8 @@ def ssaNode(node, varz, ptrs={}):
     if isinstance(node,If):
         tPtrs = ssaStmt(node.tests[0][1], varz, ptrs.copy())
         ePtrs = ssaStmt(node.else_, varz, ptrs)
-        ptrs = merge(tPtrs, ePtrs, varz)
+        if tPtrs != ePtrs:
+            ptrs = merge(tPtrs, ePtrs, varz)
     if isinstance(node,IntMoveInstr):
         update(node.lhs,varz,ptrs)
         rename(node.lhs,varz,ptrs)

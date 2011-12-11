@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 import ssa
+import varCount
 import pdb
 import sys
 import compiler
@@ -122,7 +123,8 @@ if True:
                 else:
                     print node
     funs = ssa.makeSSA(funs)
-    if True:
+    varCount(funs)
+    if False:
         for fun in funs:
             #fun.code.nodes.reverse()
             for node in fun.code.nodes:
